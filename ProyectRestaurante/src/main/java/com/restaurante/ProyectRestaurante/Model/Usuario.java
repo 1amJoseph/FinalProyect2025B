@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id_usuario;  // ✅ Cambiar a Long para coincidir con bigint
+    private Long id_usuario;  // Cambiar a Long para coincidir con bigint
 
     @NotBlank(message = "Debe ingresar su nombre")
     private String nombre_usuario;
@@ -23,11 +23,11 @@ public class Usuario {
     @NotBlank(message = "Ingrese su clave")
     private String clave;
 
-    // Guardar solo el ID del rol (más simple)
+    // Guardar solo el ID del rol
     @Column(name = "id_rol")
     private Integer id_rol;
 
-    // Relación con Rol (opcional, para cuando necesites el objeto completo)
+    // Relación con Rol
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_rol", insertable = false, updatable = false)
     private Rol rol;

@@ -41,8 +41,8 @@ public class DetalleReciboController {
         return detalleReciboRepository.findById(id).map(detalle -> {
             detalle.setCantidad(detalleActualizado.getCantidad());
             detalle.setSubtotal(detalleActualizado.getSubtotal());
-            detalle.setIdProducto(detalleActualizado.getIdProducto());  // ✅ Usar setIdProducto
-            detalle.setRecibo(detalleActualizado.getRecibo());      // ✅ Usar setIdRecib
+            detalle.setIdProducto(detalleActualizado.getIdProducto());
+            detalle.setRecibo(detalleActualizado.getRecibo());
 
             return ResponseEntity.ok(detalleReciboRepository.save(detalle));
         }).orElseGet(() -> ResponseEntity.notFound().build());

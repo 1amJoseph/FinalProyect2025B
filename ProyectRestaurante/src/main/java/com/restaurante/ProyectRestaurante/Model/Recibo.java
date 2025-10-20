@@ -9,13 +9,12 @@ import java.util.Date;
 import java.util.List;
 
 @Entity
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})  // ← AGREGAR
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Recibo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idRecibo;
 
-    // Cliente apunta a la misma tabla usuario
     @ManyToOne
     @JoinColumn(name = "id_cliente", nullable = false)
     private Usuario idCliente;
