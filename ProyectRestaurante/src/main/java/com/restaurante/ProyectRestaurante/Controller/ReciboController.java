@@ -2,9 +2,11 @@ package com.restaurante.ProyectRestaurante.Controller;
 
 import com.restaurante.ProyectRestaurante.Model.Recibo;
 import com.restaurante.ProyectRestaurante.Model.DetalleRecibo;
+import com.restaurante.ProyectRestaurante.Model.Usuario;
 import com.restaurante.ProyectRestaurante.Repository.ReciboRepository;
 import com.restaurante.ProyectRestaurante.Repository.DetalleReciboRepository;
 import com.restaurante.ProyectRestaurante.Repository.UsuarioRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,52 +31,64 @@ public class ReciboController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    // ✅ NUEVO: Crear recibo con detalles (para el carrito)
+    @Transactional
     @PostMapping
     public ResponseEntity<?> crear(@RequestBody Map<String, Object> reciboData) {
         try {
-            // Validar que el usuario existe
+            // Obtener IDs
             Long idCliente = ((Number) reciboData.get("id_cliente")).longValue();
             Long idUsuario = ((Number) reciboData.get("id_usuario")).longValue();
 
-            if (!usuarioRepository.existsById(idCliente)) {
-                return ResponseEntity.badRequest().body("Usuario (cliente) no encontrado");
-            }
-
-            if (!usuarioRepository.existsById(idUsuario)) {
-                return ResponseEntity.badRequest().body("Usuario no encontrado");
-            }
+            // Buscar entidades Usuario
+            Usuario cliente = usuarioRepository.findById(idCliente)
+                    .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+            Usuario usuario = usuarioRepository.findById(idUsuario)
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
             // Crear recibo
             Recibo recibo = new Recibo();
-            recibo.setIdCliente(idCliente);
-            recibo.setIdUsuario(idUsuario);
+            recibo.setIdCliente(cliente);
+            recibo.setIdUsuario(usuario);
             recibo.setFecha(LocalDate.parse((String) reciboData.get("fecha")));
-            recibo.setIdMesa((Integer) reciboData.get("id_mesa"));
-
-            Recibo savedRecibo = reciboRepository.save(recibo);
 
             // Crear detalles del recibo
             List<Map<String, Object>> detalles = (List<Map<String, Object>>) reciboData.get("detalles");
-
             if (detalles != null && !detalles.isEmpty()) {
                 for (Map<String, Object> detalle : detalles) {
                     DetalleRecibo detalleRecibo = new DetalleRecibo();
-                    detalleRecibo.setIdRecibo(savedRecibo.getIdRecibo());
-                    detalleRecibo.setIdProducto((Integer) detalle.get("id_producto"));
-                    detalleRecibo.setCantidad((Integer) detalle.get("cantidad"));
-                    detalleRecibo.setSubtotal(new BigDecimal((String) detalle.get("subtotal")));
+                    detalleRecibo.setRecibo(recibo); // vínculo con el recibo
+                    detalleRecibo.setIdProducto(((Number) detalle.get("id_producto")).intValue());
+                    detalleRecibo.setCantidad(((Number) detalle.get("cantidad")).intValue());
 
-                    detalleReciboRepository.save(detalleRecibo);
+                    // Manejo robusto del subtotal
+                    Object subtotalObj = detalle.get("subtotal");
+                    BigDecimal subtotal;
+                    if (subtotalObj instanceof String) {
+                        subtotal = new BigDecimal((String) subtotalObj);
+                    } else if (subtotalObj instanceof Number) {
+                        subtotal = BigDecimal.valueOf(((Number) subtotalObj).doubleValue());
+                    } else {
+                        subtotal = BigDecimal.ZERO;
+                    }
+                    detalleRecibo.setSubtotal(subtotal);
+
+                    // Agregar detalle a la lista del recibo
+                    recibo.getDetalles().add(detalleRecibo);
                 }
             }
+
+            // Guardar recibo y detalles automáticamente
+            Recibo savedRecibo = reciboRepository.save(recibo);
 
             return ResponseEntity.ok(savedRecibo);
 
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(500).body("Error al crear recibo: " + e.getMessage());
         }
     }
+
+
 
     @GetMapping
     public List<Recibo> listar() {
@@ -94,7 +108,6 @@ public class ReciboController {
             recibo.setFecha(reciboActualizado.getFecha());
             recibo.setIdCliente(reciboActualizado.getIdCliente());
             recibo.setIdUsuario(reciboActualizado.getIdUsuario());
-            recibo.setIdMesa(reciboActualizado.getIdMesa());
             return ResponseEntity.ok(reciboRepository.save(recibo));
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }

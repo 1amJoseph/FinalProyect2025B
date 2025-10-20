@@ -1,5 +1,6 @@
 package com.restaurante.ProyectRestaurante.Model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 
 
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})  // ← AGREGAR
 public class Rol {
     @Id
     @GeneratedValue (strategy = GenerationType.IDENTITY)

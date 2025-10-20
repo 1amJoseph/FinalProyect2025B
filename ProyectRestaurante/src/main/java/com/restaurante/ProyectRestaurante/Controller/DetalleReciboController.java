@@ -42,7 +42,7 @@ public class DetalleReciboController {
             detalle.setCantidad(detalleActualizado.getCantidad());
             detalle.setSubtotal(detalleActualizado.getSubtotal());
             detalle.setIdProducto(detalleActualizado.getIdProducto());  // ✅ Usar setIdProducto
-            detalle.setIdRecibo(detalleActualizado.getIdRecibo());      // ✅ Usar setIdRecibo
+            detalle.setRecibo(detalleActualizado.getRecibo());      // ✅ Usar setIdRecib
 
             return ResponseEntity.ok(detalleReciboRepository.save(detalle));
         }).orElseGet(() -> ResponseEntity.notFound().build());

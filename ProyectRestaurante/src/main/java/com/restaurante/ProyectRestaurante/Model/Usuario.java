@@ -1,9 +1,11 @@
 package com.restaurante.ProyectRestaurante.Model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})  // ← AGREGAR
 public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
