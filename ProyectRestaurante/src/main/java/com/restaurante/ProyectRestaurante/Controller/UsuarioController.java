@@ -7,13 +7,14 @@ import com.restaurante.ProyectRestaurante.Repository.RolRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/usuarios")  // ✅ Cambiar aquí: agregar /api
-@CrossOrigin(origins = "http://localhost:4321")
+@RequestMapping("/api/usuarios")
 public class UsuarioController {
 
     @Autowired
@@ -22,7 +23,9 @@ public class UsuarioController {
     @Autowired
     private RolRepository rolRepository;
 
-    // Listar usuarios con el nombre del rol (JOIN)
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> listar() {
         List<Usuario> usuarios = usuarioRepository.findAll();
@@ -30,12 +33,13 @@ public class UsuarioController {
 
         for (Usuario u : usuarios) {
             Map<String, Object> userData = new HashMap<>();
-            userData.put("id_usuario", u.getIdUsuario());  // ✅ Sin guión bajo
+            userData.put("id_usuario", u.getIdUsuario());
             userData.put("nombre_usuario", u.getNombreUsuario());
             userData.put("telefono", u.getTelefono());
             userData.put("email", u.getEmail());
             userData.put("id_rol", u.getIdRol());
-            userData.put("clave", u.getClave());
+            // ELIMINAR ESTA LÍNEA (seguridad):
+            // userData.put("clave", u.getClave());
 
             // JOIN con tabla rol
             Optional<Rol> rol = rolRepository.findById(u.getIdRol());
@@ -55,7 +59,10 @@ public class UsuarioController {
             usuario.setNombreUsuario((String) usuarioData.get("nombre_usuario"));
             usuario.setTelefono((String) usuarioData.get("telefono"));
             usuario.setEmail((String) usuarioData.get("email"));
-            usuario.setClave((String) usuarioData.get("clave"));
+
+            String clave = (String) usuarioData.get("clave");
+            usuario.setClave(passwordEncoder.encode(clave));
+
 
             // Convertir id_rol a Integer
             Object idRolObj = usuarioData.get("id_rol");
@@ -75,26 +82,41 @@ public class UsuarioController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Usuario> obtenerPorId(@PathVariable Long id) {  // ✅ Cambiar a Long
+    public ResponseEntity<Usuario> obtenerPorId(@PathVariable Long id) {
         return usuarioRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> actualizar(@PathVariable Long id, @RequestBody Usuario usuarioActualizado) {  // ✅ Cambiar a Long
+    public ResponseEntity<Usuario> actualizar(@PathVariable Long id, @RequestBody Usuario usuarioActualizado) {
         return usuarioRepository.findById(id).map(usuario -> {
             usuario.setNombreUsuario(usuarioActualizado.getNombreUsuario());
             usuario.setTelefono(usuarioActualizado.getTelefono());
             usuario.setEmail(usuarioActualizado.getEmail());
-            usuario.setClave(usuarioActualizado.getClave());
-            usuario.setIdRol(usuarioActualizado.getIdRol());  // ✅ Cambiar a setIdRol
+
+            // PROBLEMA: Esto encripta UNA CONTRASEÑA YA ENCRIPTADA
+            // BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+            // usuario.setClave(encoder.encode(usuario.getClave()));
+
+            // SOLO encriptar si viene una contraseña nueva
+            if (usuarioActualizado.getClave() != null && !usuarioActualizado.getClave().isEmpty()) {
+                // Solo si el usuario envía una nueva contraseña
+                if (!usuarioActualizado.getClave().startsWith("$2a$")) {
+                    // No está encriptada, entonces encriptar
+                    usuario.setClave(passwordEncoder.encode(usuarioActualizado.getClave()));
+                }
+                // Si ya empieza con $2a$ es porque ya está encriptada, no hacer nada
+            }
+
+            usuario.setIdRol(usuarioActualizado.getIdRol());
             return ResponseEntity.ok(usuarioRepository.save(usuario));
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {  // ✅ Cambiar a Long
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+
         if (usuarioRepository.existsById(id)) {
             usuarioRepository.deleteById(id);
             return ResponseEntity.noContent().build();
@@ -104,39 +126,79 @@ public class UsuarioController {
 
     // ---------- LOGIN DE USUARIO ----------
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
-        String email = credentials.get("email");
-        String clave = credentials.get("clave");
+    public ResponseEntity<?> login(
+                                   @RequestBody Usuario loginRequest) {
+//        String email = credentials.get("email").toLowerCase().trim();
+//        String clave = credentials.get("clave").trim(); // nunca está de más
 
-        if (email == null || clave == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Faltan campos"));
-        }
+//        System.out.println(" Login attempt - Email: " + email);
 
-        // Buscar usuario por email
-        Optional<Usuario> usuarioOpt = usuarioRepository.findAll().stream()
-                .filter(u -> email.equals(u.getEmail()) && clave.equals(u.getClave()))
-                .findFirst();
-
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(loginRequest.getEmail().toLowerCase().trim());
         if (usuarioOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Credenciales inválidas"));
+            return ResponseEntity.status(401).body("Usuario no encontrado");
         }
 
         Usuario usuario = usuarioOpt.get();
 
-        // Obtener el rol
+        if (usuario == null){
+            return ResponseEntity.status(401).body("Usuario no encontrado");
+        }
+
+//        if (email == null || clave == null) {
+//            return ResponseEntity.badRequest().body(Map.of("message", "Faltan campos"));
+//        }
+
+// Buscar usuario por email
+//        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email.toLowerCase().trim());
+
+
+
+
+
+//        if (usuarioOpt.isEmpty()) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                    .body(Map.of("message", "Credenciales inválidas"));
+//        }
+
+//        Usuario usuario = usuarioOpt.get();
+//        System.out.println(" Usuario encontrado: " + usuario.getEmail());
+//        System.out.println(" Contraseña en BD: " + usuario.getClave().substring(0, 20) + "...");
+
+
+// Verificar la contraseña usando PasswordEncoder
+
+
+        System.out.println("Clave ingresada: " + loginRequest.getClave());
+        System.out.println("Clave en DB: " + usuario.getClave());
+        System.out.println("Coincide?: " + passwordEncoder.matches(loginRequest.getClave(), usuario.getClave()));
+
+        if(!passwordEncoder.matches(loginRequest.getClave(), usuario.getClave())){
+            return ResponseEntity.status(401).body("Credenciales invalidas");
+        }
+
+//        if (!passwordEncoder.matches(clave, usuario.getClave())) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                    .body(Map.of("success", false, "message","Credenciales inválidas"));
+//        }
+
+        System.out.println("✅ Login exitoso");
+
+
+
+
+        // Obtener el rol sin clave
         Optional<Rol> rolOpt = rolRepository.findById(usuario.getIdRol());
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("token", "fake-jwt-token-123456"); // luego lo puedes reemplazar por JWT real
+        response.put("token", "fake-jwt-token-123456");
 
         response.put("user", Map.of(
                 "id_usuario", usuario.getIdUsuario(),
                 "nombre_usuario", usuario.getNombreUsuario(),
                 "telefono", usuario.getTelefono(),
                 "email", usuario.getEmail(),
-                "id_rol", usuario.getIdRol(),
+                    "id_rol", usuario.getIdRol(),
                 "nombre_rol", rolOpt.map(Rol::getNombre_rol).orElse("Desconocido")
         ));
 

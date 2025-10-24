@@ -6,6 +6,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 @Entity
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -17,7 +19,10 @@ public class Producto {
     @NotBlank(message = "Nombre del producto?")
     private String nombre_producto;
 
-    @NotBlank(message = "y con ganas de vender a cuanto?")
+
+
+    @NotNull(message = "El precio es obligatorio")
+    @Positive(message = "El precio debe ser mayor a cero")
     private Double precio_unitario;
 
     public Producto(){}
